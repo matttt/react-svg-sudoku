@@ -1,113 +1,257 @@
-import Image from "next/image";
+"use client"
+import { useState, useEffect } from "react";
+import { useKeyPress } from 'ahooks';
+import Div100vh from 'react-div-100vh';
+
+import Confetti from 'react-confetti'
+import { gridToString, flatCellArrTo2DArr, checkIfWin } from "./util";
+import { Keypad } from "./keypad";
+import { isMobile } from 'react-device-detect';
+
+import { ToggleButton, ToggleButtonGroup } from "@mui/material";
+
+export interface Cell {
+  i: number;
+  j: number;
+  value: number | null;
+  isPreset: boolean;
+}
 
 export default function Home() {
-  return (
-    <main className="flex min-h-screen flex-col items-center justify-between p-24">
-      <div className="z-10 max-w-5xl w-full items-center justify-between font-mono text-sm lg:flex">
-        <p className="fixed left-0 top-0 flex w-full justify-center border-b border-gray-300 bg-gradient-to-b from-zinc-200 pb-6 pt-8 backdrop-blur-2xl dark:border-neutral-800 dark:bg-zinc-800/30 dark:from-inherit lg:static lg:w-auto  lg:rounded-xl lg:border lg:bg-gray-200 lg:p-4 lg:dark:bg-zinc-800/30">
-          Get started by editing&nbsp;
-          <code className="font-mono font-bold">src/app/page.tsx</code>
-        </p>
-        <div className="fixed bottom-0 left-0 flex h-48 w-full items-end justify-center bg-gradient-to-t from-white via-white dark:from-black dark:via-black lg:static lg:h-auto lg:w-auto lg:bg-none">
-          <a
-            className="pointer-events-none flex place-items-center gap-2 p-8 lg:pointer-events-auto lg:p-0"
-            href="https://vercel.com?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            By{" "}
-            <Image
-              src="/vercel.svg"
-              alt="Vercel Logo"
-              className="dark:invert"
-              width={100}
-              height={24}
-              priority
-            />
-          </a>
-        </div>
-      </div>
+  const [isClient, setIsClient] = useState(false)
+  const [candidateMode, setCandidateMode] = useState(false)
 
-      <div className="relative flex place-items-center before:absolute before:h-[300px] before:w-full sm:before:w-[480px] before:-translate-x-1/2 before:rounded-full before:bg-gradient-radial before:from-white before:to-transparent before:blur-2xl before:content-[''] after:absolute after:-z-20 after:h-[180px] after:w-full sm:after:w-[240px] after:translate-x-1/3 after:bg-gradient-conic after:from-sky-200 after:via-blue-200 after:blur-2xl after:content-[''] before:dark:bg-gradient-to-br before:dark:from-transparent before:dark:to-blue-700 before:dark:opacity-10 after:dark:from-sky-900 after:dark:via-[#0141ff] after:dark:opacity-40 before:lg:h-[360px] z-[-1]">
-        <Image
-          className="relative dark:drop-shadow-[0_0_0.3rem_#ffffff70] dark:invert"
-          src="/next.svg"
-          alt="Next.js Logo"
-          width={180}
-          height={37}
-          priority
+
+  // used so ssr doesn't cry about window not being defined
+  useEffect(() => {
+    setIsClient(true)
+  }, [])
+
+  let gridSize = 500
+
+  if (isClient) {
+    gridSize = Math.min(window.innerWidth, window.innerHeight) * 0.8
+  }
+  const cellCize = gridSize / 9
+
+  //   const puzzleStr = `
+  // 123678945
+  // 584239761
+  // 967#45328
+  // 372461589
+  // 691583274
+  // 458792613
+  // 836924157
+  // 219857436
+  // 745316892`
+  const puzzleStr = `
+  #512###9#
+  #38#79#4#
+  29#5####6
+  1236##7##
+  87#3#1#54
+  ##9##8361
+  4####2#15
+  #1#86#43#
+  #6###792#`
+
+  //   const puzzleStr = `
+  // 38##5####
+  // #2##7#6#5
+  // ###6#2##4
+  // #6#3##29#
+  // 153#####8
+  // ###7#####
+  // #9#26#8##
+  // ##8#####3
+  // 2#1#####9`
+
+  const cleanedPuzzleStr = puzzleStr.trim().replace(/[^1-9#\n]/g, "")
+  const puzzleGrid = cleanedPuzzleStr.split("\n").map(row => row.split(""))
+
+  const startingSudoku: Cell[] = Array.from({ length: 9 * 9 }).map((_, n) => {
+    const i = Math.floor(n / 9)
+    const j = n % 9
+
+    const value = puzzleGrid[j][i]
+
+    return {
+      i,
+      j,
+      value: value === "#" ? null : parseInt(value),
+      isPreset: value !== "#"
+    }
+  }
+  );
+
+  const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
+  const [sudoku, setSudoku] = useState<Cell[]>(startingSudoku);
+
+  const filterKey = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'uparrow', 'downarrow', 'leftarrow', 'rightarrow'];
+  useKeyPress(filterKey, (event) => {
+    if (selectedCell === null) return;
+
+    const [i, j] = selectedCell;
+
+    const cellIdx = j * 9 + i
+
+    if (event.key === 'ArrowDown') {
+      setSelectedCell([i, Math.min(j + 1, 8)])
+      return;
+    } else if (event.key === 'ArrowUp') {
+      setSelectedCell([i, Math.max(j - 1, 0)])
+      return;
+    }
+    else if (event.key === 'ArrowLeft') {
+      setSelectedCell([Math.max(i - 1, 0), j])
+      return;
+    }
+    else if (event.key === 'ArrowRight') {
+      setSelectedCell([Math.min(i + 1, 8), j])
+      return;
+    }
+
+    if (sudoku[cellIdx].isPreset) return;
+
+    const value = parseInt(event.key)
+
+    if (value === 0 || event.key === 'Backspace') {
+      setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value: null } : cell))
+      return;
+    }
+
+    if (value >= 1 && value <= 9) {
+      setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
+      return;
+    }
+  });
+
+  let currentlySelectedVal: null | number = null;
+
+  if (selectedCell !== null) {
+    const [i, j] = selectedCell;
+    const cellIdx = j * 9 + i;
+    currentlySelectedVal = sudoku[cellIdx].value;
+  }
+
+  const handleNormalOrCandidateMode = (
+    event: React.MouseEvent<HTMLElement>,
+    newMode: boolean,
+  ) => {
+    setCandidateMode(newMode);
+  }
+
+  const sudokuGrid = <g>
+    {sudoku.map((cell, n) => {
+      const isSelected = selectedCell?.[0] === cell.i && selectedCell?.[1] === cell.j
+      const isSameValueAsSelected = currentlySelectedVal && cell.value === currentlySelectedVal;
+      const isPreset = cell.isPreset;
+
+      // if the cell is selected, fill it with a different color
+      // or if the cell has the same value as the selection fill it with a different color
+      const fill = isSelected ? "#dbf4ff" : isSameValueAsSelected ? "#f0ebb1" : isPreset ? '#EEE' : "#FFF"
+
+      const clickHandler = () => setSelectedCell([cell.i, cell.j])
+
+      return <g key={n}>
+        <rect
+          x={cell.i * cellCize}
+          y={cell.j * cellCize}
+          width={cellCize}
+          height={cellCize}
+          fill={fill}
+          stroke="#444"
+          strokeWidth={1}
+          onClick={clickHandler}
+        ></rect>
+        <text
+          x={cell.i * cellCize + cellCize / 2}
+          y={cell.j * cellCize + cellCize / 2 + 3}
+          width={cellCize}
+          height={cellCize}
+          fill="black"
+          // stroke="#444"
+          // strokeWidth={1}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={cellCize * 0.5}
+          style={{ userSelect: "none", fontWeight: cell.isPreset ? "bold" : "normal" }}
+          onClick={clickHandler}
+        >{cell.value}</text>
+      </g>
+    })}
+  </g>
+
+  // one line every 3 cells in horizontal and vert directions
+  const sudokuLines = <g>
+    {Array.from({ length: 10 }).map((_, i) => (
+      <g key={i}>
+        <line
+          x1={i * cellCize}
+          y1={0}
+          x2={i * cellCize}
+          y2={gridSize}
+          stroke="#444"
+          strokeWidth={i % 3 === 0 ? 3 : 1}
         />
-      </div>
+        <line
+          x1={0}
+          y1={i * cellCize}
+          x2={gridSize}
+          y2={i * cellCize}
+          stroke="#444"
+          strokeWidth={i % 3 === 0 ? 3 : 1}
+        />
+      </g>
+    ))}
+  </g>
 
-      <div className="mb-32 grid text-center lg:max-w-5xl lg:w-full lg:mb-0 lg:grid-cols-4 lg:text-left">
-        <a
-          href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Docs{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Find in-depth information about Next.js features and API.
-          </p>
-        </a>
+  const onPress = (value: number | null) => {
+    if (selectedCell === null) return;
 
-        <a
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Learn{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Learn about Next.js in an interactive course with&nbsp;quizzes!
-          </p>
-        </a>
+    const [i, j] = selectedCell;
+    const cellIdx = j * 9 + i;
 
-        <a
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Templates{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50`}>
-            Explore starter templates for Next.js.
-          </p>
-        </a>
+    if (sudoku[cellIdx].isPreset) return;
 
-        <a
-          href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template&utm_campaign=create-next-app"
-          className="group rounded-lg border border-transparent px-5 py-4 transition-colors hover:border-gray-300 hover:bg-gray-100 hover:dark:border-neutral-700 hover:dark:bg-neutral-800/30"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <h2 className={`mb-3 text-2xl font-semibold`}>
-            Deploy{" "}
-            <span className="inline-block transition-transform group-hover:translate-x-1 motion-reduce:transform-none">
-              -&gt;
-            </span>
-          </h2>
-          <p className={`m-0 max-w-[30ch] text-sm opacity-50 text-balance`}>
-            Instantly deploy your Next.js site to a shareable URL with Vercel.
-          </p>
-        </a>
-      </div>
-    </main>
+    if (value === null) {
+      setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value: null } : cell))
+      return;
+    }
+
+    if (typeof value === "number") {
+      setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
+      return;
+    }
+  }
+
+  return (
+    <>
+      <Div100vh className="overflow-hidden">
+        <main className="flex min-h-screen flex-col items-center justify-between pt-8">
+          {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
+          <h4 className="text-xl font-bold text-center mb-3">
+            Sudoku!
+          </h4>
+          <svg width={gridSize} height={gridSize}>
+            {sudokuGrid}
+            {sudokuLines}
+          </svg>
+          <div className="grow"></div>
+          {isClient && isMobile && <Keypad handlePress={onPress} />}
+          <ToggleButtonGroup
+            color="primary"
+            value={candidateMode}
+            exclusive
+            onChange={handleNormalOrCandidateMode}
+            aria-label="Normal or Candidate Mode"
+          >
+            <ToggleButton value={false}>Normal</ToggleButton>
+            <ToggleButton value={true}>Candidate</ToggleButton>
+          </ToggleButtonGroup>
+          <div className="grow"></div>
+        </main>
+      </Div100vh>
+    </>
   );
 }
