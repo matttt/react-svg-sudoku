@@ -2,9 +2,21 @@
 import { useState, useEffect } from "react";
 import { useKeyPress } from 'ahooks';
 import Div100vh from 'react-div-100vh';
+import Switch, { SwitchProps } from '@mui/material/Switch';
+import FormGroup from '@mui/material/FormGroup';
+import FormControlLabel from '@mui/material/FormControlLabel';
+import FormControl from '@mui/material/FormControl';
 
 import Confetti from 'react-confetti'
-import { gridToString, flatCellArrTo2DArr, checkIfWin } from "./util";
+import {
+  gridToString,
+  flatCellArrTo2DArr,
+  checkIfWin,
+  toggleCandidate,
+  doesRowContainValue,
+  doesColContainValue,
+  doesSquareContainValue
+} from "./util";
 import { Keypad } from "./keypad";
 import { isMobile } from 'react-device-detect';
 
@@ -22,15 +34,11 @@ export interface Cell {
   candidates: Candidates;
 }
 
-function toggleCandidate(cell: Cell, value: number): Cell {
-  const candidates = { ...cell.candidates }
-  candidates[value] = !candidates[value]
-  return { ...cell, candidates }
-}
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false)
   const [candidateMode, setCandidateMode] = useState(false)
+  const [babyMode, setBabyMode] = useState(false)
 
   // used so ssr doesn't cry about window not being defined
   useEffect(() => {
@@ -40,7 +48,11 @@ export default function Home() {
   let gridSize = 500
 
   if (isClient) {
-    gridSize = Math.min(window.innerWidth, window.innerHeight) * 0.8
+    gridSize = Math.min(window.innerWidth, window.innerHeight) * .8
+  }
+
+  if (!isMobile) {
+    gridSize = Math.min(gridSize, 500)
   }
   const cellCize = gridSize / 9
 
@@ -55,15 +67,25 @@ export default function Home() {
   // 219857436
   // 745316892`
   const puzzleStr = `
-  #512###9#
-  #38#79#4#
-  29#5####6
-  1236##7##
-  87#3#1#54
-  ##9##8361
-  4####2#15
-  #1#86#43#
-  #6###792#`
+#9#643##2
+2##7#9#1#
+##7##29#6
+##9378##4
+8319###65
+####56##8
+57#23##89
+4#38#####
+####6####`
+  // const puzzleStr = `
+  // #512###9#
+  // #38#79#4#
+  // 29#5####6
+  // 1236##7##
+  // 87#3#1#54
+  // ##9##8361
+  // 4####2#15
+  // #1#86#43#
+  // #6###792#`
 
   //   const puzzleStr = `
   // 38##5####
@@ -98,6 +120,7 @@ export default function Home() {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
   const [sudoku, setSudoku] = useState<Cell[]>(startingSudoku);
 
+
   const filterKey = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'uparrow', 'downarrow', 'leftarrow', 'rightarrow'];
   useKeyPress(filterKey, (event) => {
     if (selectedCell === null) return;
@@ -127,6 +150,10 @@ export default function Home() {
     const value = parseInt(event.key)
 
     if (value === 0 || event.key === 'Backspace') {
+      if (candidateMode) {
+        setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, candidates: {} } : cell))
+      }
+
       setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value: null } : cell))
       return;
     }
@@ -137,6 +164,7 @@ export default function Home() {
       } else {
         setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
       }
+
       return;
     }
   });
@@ -156,6 +184,12 @@ export default function Home() {
     setCandidateMode(newMode);
   }
 
+  const handleBabyModeChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setBabyMode(event.target.checked);
+  }
+
   const sudokuGrid = <g>
     {sudoku.map((cell, n) => {
       const isSelected = selectedCell?.[0] === cell.i && selectedCell?.[1] === cell.j
@@ -168,6 +202,11 @@ export default function Home() {
 
       const clickHandler = () => setSelectedCell([cell.i, cell.j])
 
+      const isContradictedInRow = currentlySelectedVal && doesRowContainValue(sudoku, cell.j, currentlySelectedVal)
+      const isContradictedInCol = currentlySelectedVal && doesColContainValue(sudoku, cell.i, currentlySelectedVal)
+      const isContradictedInSquare = currentlySelectedVal && doesSquareContainValue(sudoku, cell.i, cell.j, currentlySelectedVal)
+
+      //  ||  || 
       const mainText = <text
         x={cell.i * cellCize + cellCize / 2}
         y={cell.j * cellCize + cellCize / 2 + 3}
@@ -187,8 +226,8 @@ export default function Home() {
         {Array.from({ length: 3 }).map((_, i) => {
           return Array.from({ length: 3 }).map((_, j) => {
             const value = i * 3 + j + 1;
-            const x = cell.i * cellCize + (cellCize / 3 * j + cellCize / 6) * .9 + (cellCize * 0.05);
-            const y = cell.j * cellCize + (cellCize / 3 * i + cellCize / 6) * .9 + (cellCize * 0.05) + 3;
+            const x = cell.i * cellCize + (cellCize / 3 * j + cellCize / 6) * .75 + (cellCize * 0.125);
+            const y = cell.j * cellCize + (cellCize / 3 * i + cellCize / 6) * .75 + (cellCize * 0.125) + 2;
             return <text
               key={value}
               x={x}
@@ -219,6 +258,54 @@ export default function Home() {
           strokeWidth={1}
           onClick={clickHandler}
         ></rect>
+        {babyMode && <>{(!cell.value && isContradictedInRow) && <line
+          x1={cell.i * cellCize + cellCize / 2 - cellCize * 0.3}
+          y1={cell.j * cellCize + cellCize / 2}
+          x2={cell.i * cellCize + cellCize / 2 + cellCize * 0.3}
+          y2={cell.j * cellCize + cellCize / 2}
+          strokeDasharray={"1,1"}
+          stroke="#f78bab"
+          strokeWidth={1}
+          textAnchor="middle"
+          dominantBaseline="middle"
+          fontSize={cellCize * 0.4}
+          style={{ userSelect: "none", fontWeight: "bolder" }}
+          onClick={clickHandler}
+        />}
+          {(!cell.value && isContradictedInCol) && <line
+            x1={cell.i * cellCize + cellCize / 2}
+            y1={cell.j * cellCize + cellCize / 2 - cellCize * 0.3}
+            x2={cell.i * cellCize + cellCize / 2}
+            y2={cell.j * cellCize + cellCize / 2 + cellCize * 0.3}
+            strokeDasharray={"1,1"}
+            stroke="#f78bab"
+            strokeWidth={1}
+            onClick={clickHandler}
+          />}
+
+          {(!cell.value && isContradictedInSquare) && <><line
+            x1={cell.i * cellCize + cellCize / 2 - cellCize * 0.1}
+            y1={cell.j * cellCize + cellCize / 2 - cellCize * 0.1}
+            x2={cell.i * cellCize + cellCize / 2 + cellCize * 0.1}
+            y2={cell.j * cellCize + cellCize / 2 + cellCize * 0.1}
+            strokeDasharray={"1,1"}
+            stroke="#f78bab"
+            strokeWidth={1}
+
+            onClick={clickHandler}
+          /><line
+              x1={cell.i * cellCize + cellCize / 2 + cellCize * 0.1}
+              y1={cell.j * cellCize + cellCize / 2 - cellCize * 0.1}
+              x2={cell.i * cellCize + cellCize / 2 - cellCize * 0.1}
+              y2={cell.j * cellCize + cellCize / 2 + cellCize * 0.1}
+              strokeDasharray={"1,1"}
+              stroke="#f78bab"
+              strokeWidth={1}
+
+              fontSize={cellCize * 0.4}
+              onClick={clickHandler}
+            /></>}</>}
+
         {cell.value ? mainText : candidateText}
       </g>
     })}
@@ -273,34 +360,47 @@ export default function Home() {
   }
 
   return (
-    <>
-      <Div100vh className="overflow-hidden">
-        <main className="flex min-h-screen flex-col items-center justify-between pt-8">
-          <div className="grow"></div>
-          {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
-          <h4 className="text-xl font-bold text-center mb-3">
-            Sudoku!
-          </h4>
-          <svg width={gridSize} height={gridSize}>
-            {sudokuGrid}
-            {sudokuLines}
-          </svg>
-          <div className="grow"></div>
-          {isClient && isMobile && <Keypad handlePress={onPress} />}
-          <ToggleButtonGroup
-            color="primary"
-            value={candidateMode}
-            exclusive
-            onChange={handleNormalOrCandidateMode}
-            aria-label="Normal or Candidate Mode"
-            className="mt-3"
-          >
-            <ToggleButton value={false}>Normal</ToggleButton>
-            <ToggleButton value={true}>Candidate</ToggleButton>
-          </ToggleButtonGroup>
-          <div className="grow"></div>
-        </main>
-      </Div100vh>
-    </>
+
+    <Div100vh className="overflow-hidden">
+      <main className="flex min-h-screen flex-col items-center justify-between md:pt-8">
+        {!isMobile && <div className="grow"></div>}
+        {isMobile && <div className="h-8"></div>}
+        {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
+
+        <h4 className="text-xl font-bold text-center mb-3">
+          Sudoku!
+        </h4>
+
+        <svg width={gridSize} height={gridSize}>
+          {sudokuGrid}
+          {sudokuLines}
+        </svg>
+        <div className="grow"></div>
+
+        {isClient && isMobile && <Keypad handlePress={onPress} />}
+        <ToggleButtonGroup
+          color="primary"
+          value={candidateMode}
+          exclusive
+          onChange={handleNormalOrCandidateMode}
+          aria-label="Normal or Candidate Mode"
+          className="mt-3"
+        >
+          <ToggleButton value={false}>Normal</ToggleButton>
+          <ToggleButton value={true}>Candidate</ToggleButton>
+        </ToggleButtonGroup>
+        <FormControl component="fieldset">
+          <FormGroup aria-label="position" row>
+            <FormControlLabel
+              control={<Switch onChange={handleBabyModeChange} />}
+              label="Baby Mode"
+              labelPlacement="end"
+            />
+          </FormGroup>
+        </FormControl>
+        <div className="h-8"></div>
+        <div className="grow"></div>
+      </main>
+    </Div100vh>
   );
 }

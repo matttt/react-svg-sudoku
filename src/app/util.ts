@@ -50,3 +50,39 @@ export function checkIfWin(sudoku: Cell[]) {
 
     
 }
+
+export function toggleCandidate(cell: Cell, value: number) {
+    if (cell.isPreset) return cell;
+
+    const candidates = { ...cell.candidates };
+
+    if (candidates[value]) {
+        delete candidates[value];
+    } else {
+        candidates[value] = true;
+    }
+
+    return { ...cell, candidates };
+}
+
+export function doesRowContainValue(sudoku: Cell[], row: number, value: number|null) {
+    return sudoku.slice(row * 9, row * 9 + 9).some(cell => cell.value === value);
+}
+
+export function doesColContainValue(sudoku: Cell[], col: number, value: number|null) {
+    return sudoku.filter((_, i) => i % 9 === col).some(cell => cell.value === value);
+}
+
+export function doesSquareContainValue(sudoku: Cell[], row: number, col: number, value: number|null) {
+    const rowStart = Math.floor(row / 3) * 3;
+    const colStart = Math.floor(col / 3) * 3;
+
+    for (let i = rowStart; i < rowStart + 3; i++) {
+        for (let j = colStart; j < colStart + 3; j++) {
+            if (sudoku[j * 9 + i].value === value) {
+                return true;
+            }
+        }
+    }
+    return false;
+}
