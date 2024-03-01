@@ -86,3 +86,27 @@ export function doesSquareContainValue(sudoku: Cell[], row: number, col: number,
     }
     return false;
 }
+
+
+export function createSudokuGridFromPuzzleString(puzzleStr: string): Cell[] {
+    const cleanedPuzzleStr = puzzleStr.trim().replace(/[^1-9#\n]/g, "")
+    const puzzleGrid = cleanedPuzzleStr.split("\n").map(row => row.split(""))
+  
+    const sudoku: Cell[] = Array.from({ length: 9 * 9 }).map((_, n) => {
+      const i = Math.floor(n / 9)
+      const j = n % 9
+  
+      const value = puzzleGrid[j][i]
+  
+      return {
+        i,
+        j,
+        value: value === "#" ? null : parseInt(value),
+        isPreset: value !== "#",
+        candidates: {}
+      }
+    }
+    );
+  
+    return sudoku;
+  }

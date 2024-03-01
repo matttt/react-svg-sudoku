@@ -7,6 +7,10 @@ import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
 
+import { PuzzlePicker } from './puzzlePicker'
+
+import { puzzles } from './puzzles'
+
 import Confetti from 'react-confetti'
 import {
   gridToString,
@@ -15,7 +19,8 @@ import {
   toggleCandidate,
   doesRowContainValue,
   doesColContainValue,
-  doesSquareContainValue
+  doesSquareContainValue,
+  createSudokuGridFromPuzzleString
 } from "./util";
 import { Keypad } from "./keypad";
 import { isMobile } from 'react-device-detect';
@@ -35,10 +40,13 @@ export interface Cell {
 }
 
 
+
 export default function Home() {
   const [isClient, setIsClient] = useState(false)
   const [candidateMode, setCandidateMode] = useState(false)
   const [babyMode, setBabyMode] = useState(false)
+  const [highlight, setHighlight] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(true)
 
   // used so ssr doesn't cry about window not being defined
   useEffect(() => {
@@ -56,70 +64,19 @@ export default function Home() {
   }
   const cellCize = gridSize / 9
 
-  //   const puzzleStr = `
-  // 123678945
-  // 584239761
-  // 967#45328
-  // 372461589
-  // 691583274
-  // 458792613
-  // 836924157
-  // 219857436
-  // 745316892`
-  const puzzleStr = `
-#9#643##2
-2##7#9#1#
-##7##29#6
-##9378##4
-8319###65
-####56##8
-57#23##89
-4#38#####
-####6####`
-  // const puzzleStr = `
-  // #512###9#
-  // #38#79#4#
-  // 29#5####6
-  // 1236##7##
-  // 87#3#1#54
-  // ##9##8361
-  // 4####2#15
-  // #1#86#43#
-  // #6###792#`
 
-  //   const puzzleStr = `
-  // 38##5####
-  // #2##7#6#5
-  // ###6#2##4
-  // #6#3##29#
-  // 153#####8
-  // ###7#####
-  // #9#26#8##
-  // ##8#####3
-  // 2#1#####9`
+  const blankSudoku = createSudokuGridFromPuzzleString(`#########\n`.repeat(9))
 
-  const cleanedPuzzleStr = puzzleStr.trim().replace(/[^1-9#\n]/g, "")
-  const puzzleGrid = cleanedPuzzleStr.split("\n").map(row => row.split(""))
-
-  const startingSudoku: Cell[] = Array.from({ length: 9 * 9 }).map((_, n) => {
-    const i = Math.floor(n / 9)
-    const j = n % 9
-
-    const value = puzzleGrid[j][i]
-
-    return {
-      i,
-      j,
-      value: value === "#" ? null : parseInt(value),
-      isPreset: value !== "#",
-      candidates: {}
-    }
-  }
-  );
 
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
-  const [sudoku, setSudoku] = useState<Cell[]>(startingSudoku);
+  const [sudoku, setSudoku] = useState<Cell[]>(blankSudoku);
 
+
+  const onNewPuzzleStr = (puzzleStr: string) => {
+    setPickerOpen(false)
+    setSelectedCell(null)
+    setSudoku(createSudokuGridFromPuzzleString(puzzleStr))
+  }
 
   const filterKey = ['0', '1', '2', '3', '4', '5', '6', '7', '8', '9', 'Backspace', 'uparrow', 'downarrow', 'leftarrow', 'rightarrow'];
   useKeyPress(filterKey, (event) => {
@@ -155,6 +112,7 @@ export default function Home() {
       }
 
       setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value: null } : cell))
+  
       return;
     }
 
@@ -190,6 +148,12 @@ export default function Home() {
     setBabyMode(event.target.checked);
   }
 
+  const handleHighlightChange = (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
+    setHighlight(event.target.checked);
+  }
+
   const sudokuGrid = <g>
     {sudoku.map((cell, n) => {
       const isSelected = selectedCell?.[0] === cell.i && selectedCell?.[1] === cell.j
@@ -198,9 +162,9 @@ export default function Home() {
 
       // if the cell is selected, fill it with a different color
       // or if the cell has the same value as the selection fill it with a different color
-      const fill = isSelected ? "#dbf4ff" : isSameValueAsSelected ? "#f0ebb1" : isPreset ? '#EEE' : "#FFF"
+      const fill = isSelected ? "#dbf4ff" : (isSameValueAsSelected && highlight) ? "#f0ebb1" : isPreset ? '#EEE' : "#FFF"
 
-      const clickHandler = () => setSelectedCell([cell.i, cell.j])
+      const clickHandler = () => (selectedCell && cell.i === selectedCell[0] && cell.j === selectedCell[1]) ? setSelectedCell(null) : setSelectedCell([cell.i, cell.j])
 
       const isContradictedInRow = currentlySelectedVal && doesRowContainValue(sudoku, cell.j, currentlySelectedVal)
       const isContradictedInCol = currentlySelectedVal && doesColContainValue(sudoku, cell.i, currentlySelectedVal)
@@ -241,7 +205,7 @@ export default function Home() {
               dominantBaseline="middle"
               fontSize={cellCize * 0.2}
               style={{ userSelect: "none" }}
-              onClick={() => onPress(value)}
+              onClick={clickHandler}
             >{cell.candidates[value] ? value : ""}</text>
           })
         })}
@@ -366,7 +330,7 @@ export default function Home() {
         {!isMobile && <div className="grow"></div>}
         {isMobile && <div className="h-8"></div>}
         {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
-
+        <PuzzlePicker open={pickerOpen} onClick={onNewPuzzleStr} setOpen={setPickerOpen} />
         <h4 className="text-xl font-bold text-center mb-3">
           Sudoku!
         </h4>
@@ -391,6 +355,11 @@ export default function Home() {
         </ToggleButtonGroup>
         <FormControl component="fieldset">
           <FormGroup aria-label="position" row>
+            <FormControlLabel
+              control={<Switch onChange={handleHighlightChange} />}
+              label="Highlight"
+              labelPlacement="end"
+            />
             <FormControlLabel
               control={<Switch onChange={handleBabyModeChange} />}
               label="Baby Mode"
