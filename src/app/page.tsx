@@ -10,17 +10,27 @@ import { isMobile } from 'react-device-detect';
 
 import { ToggleButton, ToggleButtonGroup } from "@mui/material";
 
+interface Candidates {
+  [key: number]: boolean;
+}
+
 export interface Cell {
   i: number;
   j: number;
   value: number | null;
   isPreset: boolean;
+  candidates: Candidates;
+}
+
+function toggleCandidate(cell: Cell, value: number): Cell {
+  const candidates = { ...cell.candidates }
+  candidates[value] = !candidates[value]
+  return { ...cell, candidates }
 }
 
 export default function Home() {
   const [isClient, setIsClient] = useState(false)
   const [candidateMode, setCandidateMode] = useState(false)
-
 
   // used so ssr doesn't cry about window not being defined
   useEffect(() => {
@@ -79,7 +89,8 @@ export default function Home() {
       i,
       j,
       value: value === "#" ? null : parseInt(value),
-      isPreset: value !== "#"
+      isPreset: value !== "#",
+      candidates: {}
     }
   }
   );
@@ -121,7 +132,11 @@ export default function Home() {
     }
 
     if (value >= 1 && value <= 9) {
-      setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
+      if (candidateMode) {
+        setSudoku(sudoku.map((cell, n) => n === cellIdx ? toggleCandidate(cell, value) : cell))
+      } else {
+        setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
+      }
       return;
     }
   });
@@ -153,6 +168,46 @@ export default function Home() {
 
       const clickHandler = () => setSelectedCell([cell.i, cell.j])
 
+      const mainText = <text
+        x={cell.i * cellCize + cellCize / 2}
+        y={cell.j * cellCize + cellCize / 2 + 3}
+        width={cellCize}
+        height={cellCize}
+        fill="black"
+        // stroke="#444"
+        // strokeWidth={1}
+        textAnchor="middle"
+        dominantBaseline="middle"
+        fontSize={cellCize * 0.5}
+        style={{ userSelect: "none", fontWeight: cell.isPreset ? "bold" : "normal" }}
+        onClick={clickHandler}
+      >{cell.value}</text>
+
+      const candidateText = <g>
+        {Array.from({ length: 3 }).map((_, i) => {
+          return Array.from({ length: 3 }).map((_, j) => {
+            const value = i * 3 + j + 1;
+            const x = cell.i * cellCize + (cellCize / 3 * j + cellCize / 6) * .9 + (cellCize * 0.05);
+            const y = cell.j * cellCize + (cellCize / 3 * i + cellCize / 6) * .9 + (cellCize * 0.05) + 3;
+            return <text
+              key={value}
+              x={x}
+              y={y}
+              width={cellCize}
+              height={cellCize}
+              fill="black"
+              // stroke="#444"
+              // strokeWidth={1}
+              textAnchor="middle"
+              dominantBaseline="middle"
+              fontSize={cellCize * 0.2}
+              style={{ userSelect: "none" }}
+              onClick={() => onPress(value)}
+            >{cell.candidates[value] ? value : ""}</text>
+          })
+        })}
+      </g>
+
       return <g key={n}>
         <rect
           x={cell.i * cellCize}
@@ -164,20 +219,7 @@ export default function Home() {
           strokeWidth={1}
           onClick={clickHandler}
         ></rect>
-        <text
-          x={cell.i * cellCize + cellCize / 2}
-          y={cell.j * cellCize + cellCize / 2 + 3}
-          width={cellCize}
-          height={cellCize}
-          fill="black"
-          // stroke="#444"
-          // strokeWidth={1}
-          textAnchor="middle"
-          dominantBaseline="middle"
-          fontSize={cellCize * 0.5}
-          style={{ userSelect: "none", fontWeight: cell.isPreset ? "bold" : "normal" }}
-          onClick={clickHandler}
-        >{cell.value}</text>
+        {cell.value ? mainText : candidateText}
       </g>
     })}
   </g>
@@ -220,7 +262,12 @@ export default function Home() {
     }
 
     if (typeof value === "number") {
+      if (candidateMode) {
+        setSudoku(sudoku.map((cell, n) => n === cellIdx ? toggleCandidate(cell, value) : cell))
+        return;
+      }
       setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value } : cell))
+
       return;
     }
   }
@@ -229,6 +276,7 @@ export default function Home() {
     <>
       <Div100vh className="overflow-hidden">
         <main className="flex min-h-screen flex-col items-center justify-between pt-8">
+          <div className="grow"></div>
           {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
           <h4 className="text-xl font-bold text-center mb-3">
             Sudoku!
@@ -245,6 +293,7 @@ export default function Home() {
             exclusive
             onChange={handleNormalOrCandidateMode}
             aria-label="Normal or Candidate Mode"
+            className="mt-3"
           >
             <ToggleButton value={false}>Normal</ToggleButton>
             <ToggleButton value={true}>Candidate</ToggleButton>
