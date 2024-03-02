@@ -1,5 +1,5 @@
 "use client"
-import { useState, useEffect, useRef, HtmlHTMLAttributes } from "react";
+import { useState, useEffect, useRef, HtmlHTMLAttributes, MutableRefObject } from "react";
 import { useKeyPress } from 'ahooks';
 import Div100vh from 'react-div-100vh';
 import Switch, { SwitchProps } from '@mui/material/Switch';
@@ -55,8 +55,8 @@ export default function Home() {
   const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
   const [sudoku, setSudoku] = useState<Cell[]>(blankSudoku);
 
-  const animationContainer = useRef();
-  const entryCell = useRef();
+  const animationContainer = useRef<SVGSVGElement | null>()  as MutableRefObject<SVGSVGElement>;;
+  const entryCell = useRef<SVGTextElement|null>();
 
   useGSAP(() => {
     // gsap code here...
