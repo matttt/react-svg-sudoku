@@ -13,8 +13,10 @@
   "dependencies": {
     "@emotion/react": "^11.11.4",
     "@emotion/styled": "^11.11.0",
+    "@gsap/react": "^2.1.0",
     "@mui/material": "^5.15.11",
     "ahooks": "^3.7.10",
+    "gsap": "^3.12.5",
     "next": "14.1.0",
     "react": "^18",
     "react-confetti": "^6.1.0",

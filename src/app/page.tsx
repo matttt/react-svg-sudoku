@@ -1,11 +1,13 @@
 "use client"
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, HtmlHTMLAttributes } from "react";
 import { useKeyPress } from 'ahooks';
 import Div100vh from 'react-div-100vh';
 import Switch, { SwitchProps } from '@mui/material/Switch';
 import FormGroup from '@mui/material/FormGroup';
 import FormControlLabel from '@mui/material/FormControlLabel';
 import FormControl from '@mui/material/FormControl';
+import gsap from "gsap"; // <-- import GSAP
+import { useGSAP } from "@gsap/react";
 
 import { PuzzlePicker } from './puzzlePicker'
 
@@ -48,6 +50,36 @@ export default function Home() {
   const [highlight, setHighlight] = useState(false)
   const [pickerOpen, setPickerOpen] = useState(true)
 
+  const blankSudoku = createSudokuGridFromPuzzleString(`#########\n`.repeat(9))
+
+  const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
+  const [sudoku, setSudoku] = useState<Cell[]>(blankSudoku);
+
+  const animationContainer = useRef();
+  const entryCell = useRef();
+
+  useGSAP(() => {
+    // gsap code here...
+    // gsap.from(".sudokuPresetNum", { y: -10, alpha: 0, stagger: 0.1, duration: 0.5, ease: "power2.inOut" });
+    gsap.from(".sudokuPresetNum", { 
+      alpha: 0, duration: 0.5,
+      ease: "power2.inOut",
+      stagger: {
+        grid: "auto",
+        from: "center",
+        ease: "power2.in",
+        amount: .5
+      }
+     });
+  }, { scope: animationContainer, dependencies: [pickerOpen] })
+
+  useGSAP(() => {
+    // gsap code here...
+    entryCell.current && gsap.from(entryCell.current, { y: -10, alpha: 0, duration: 0.25, ease: "power2.inOut" });
+  }, { scope: animationContainer, dependencies: [sudoku] })
+
+
+
   // used so ssr doesn't cry about window not being defined
   useEffect(() => {
     setIsClient(true)
@@ -65,11 +97,6 @@ export default function Home() {
   const cellCize = gridSize / 9
 
 
-  const blankSudoku = createSudokuGridFromPuzzleString(`#########\n`.repeat(9))
-
-
-  const [selectedCell, setSelectedCell] = useState<[number, number] | null>(null)
-  const [sudoku, setSudoku] = useState<Cell[]>(blankSudoku);
 
 
   const onNewPuzzleStr = (puzzleStr: string) => {
@@ -112,7 +139,7 @@ export default function Home() {
       }
 
       setSudoku(sudoku.map((cell, n) => n === cellIdx ? { ...cell, value: null } : cell))
-  
+
       return;
     }
 
@@ -170,10 +197,17 @@ export default function Home() {
       const isContradictedInCol = currentlySelectedVal && doesColContainValue(sudoku, cell.i, currentlySelectedVal)
       const isContradictedInSquare = currentlySelectedVal && doesSquareContainValue(sudoku, cell.i, cell.j, currentlySelectedVal)
 
-      //  ||  || 
+      const attr = {}
+      if (isSelected) {
+        //@ts-ignore
+        attr.ref = entryCell
+      }
+
       const mainText = <text
         x={cell.i * cellCize + cellCize / 2}
         y={cell.j * cellCize + cellCize / 2 + 3}
+        {...attr}
+        className={cell.isPreset ? "sudokuPresetNum" : "sudokuNum"}
         width={cellCize}
         height={cellCize}
         fill="black"
@@ -326,7 +360,7 @@ export default function Home() {
   return (
 
     <Div100vh className="overflow-hidden">
-      <main className="flex min-h-screen flex-col items-center justify-between md:pt-8">
+      <main className="flex min-h-screen flex-col items-center justify-between md:pt-8" >
         {!isMobile && <div className="grow"></div>}
         {isMobile && <div className="h-8"></div>}
         {(isClient && checkIfWin(sudoku)) && <Confetti recycle={false} />}
@@ -335,7 +369,7 @@ export default function Home() {
           Sudoku!
         </h4>
 
-        <svg width={gridSize} height={gridSize}>
+        <svg ref={animationContainer} width={gridSize} height={gridSize}>
           {sudokuGrid}
           {sudokuLines}
         </svg>

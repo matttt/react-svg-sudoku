@@ -32,7 +32,7 @@ export function PuzzlePicker({ open, setOpen, onClick }: PuzzlePickerProps) {
     }, [open]);
 
     // @ts-ignore
-    const BlurDrop = () => <Backdrop open={open} style={{'backdrop-filter':' blur(5px)'}}></Backdrop>
+    const BlurDrop = () => <Backdrop open={open} style={{'backdropFilter':' blur(5px)'}}></Backdrop>
     
     const pickRandomOfDifficulty = (difficulty: Difficulty) => {
         const puzzlesOfDifficulty = puzzles.filter(puzzle => puzzle.difficulty === difficulty);
