@@ -1,11 +1,11 @@
-enum Difficulty {
+export enum Difficulty {
     BABY = 'baby',
     EASY = 'easy',
     MEDIUM = 'medium',
     HARD = 'hard'
 }
 
-interface Puzzle {
+export interface Puzzle {
     id: string;
     puzzleString: string;
     difficulty: Difficulty;
@@ -83,5 +83,35 @@ export const puzzles: Puzzle[] = [
         54#1#9###
         ##6##2#41`,
         difficulty: Difficulty.MEDIUM
+    },
+    {
+        id: '1512351325-26bd-47de-99ca-97ff3fa9f1f1',
+        puzzleString: `
+        2##3##8##
+        #####2###
+        #4###9###
+        ##8##136#
+        17#######
+        36#8#####
+        #9#147#2#
+        63##2##41
+        ######9##
+        `,
+        difficulty: Difficulty.HARD
+    },
+    {
+        id: '623782346-26bd-47de-99ca-97ff3fa9f1f1',
+        puzzleString: `
+        2####9###
+        #9#5###6#
+        815#7#9##
+        1###67#9#
+        9##45###2
+        #3######8
+        #5####82#
+        4######16
+        3##2####7
+        `,
+        difficulty: Difficulty.HARD
     },
 ]
