@@ -47,7 +47,7 @@ export function PuzzlePicker({ open, setOpen, onClick }: PuzzlePickerProps) {
             <DialogTitle id="scroll-dialog-title">Pick a Sudoku Puzzle!</DialogTitle>
             <DialogContent>
                 {/* use tailwind to create a 3 column css grid */}
-                <div className="grid grid-cols-1 gap-4 md: grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
                     {/* map over the puzzles */}
                     {puzzles.map(puzzle => {
                         const grid = createSudokuGridFromPuzzleString(puzzle.puzzleString);
